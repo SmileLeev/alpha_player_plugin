@@ -1,7 +1,7 @@
 name: alpha_player_plugin
-description: 用于播放mp4透明视频的插件，对字节跳动官方原生组件AlphaPlayer的封装
+description: "support alpha video player"
 version: 0.0.1
-homepage: https://github.com/pengboboer/alpha_player_plugin
+homepage: https://github.com/SmileLeev/alpha_player_plugin.git
 
 environment:
   sdk: '>=2.12.0 <3.0.0'
