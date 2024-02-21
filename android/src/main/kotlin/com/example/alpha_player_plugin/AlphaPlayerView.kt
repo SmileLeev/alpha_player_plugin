@@ -13,35 +13,30 @@ import com.ss.ugc.android.alpha_player.IMonitor
 import com.ss.ugc.android.alpha_player.IPlayerAction
 import com.ss.ugc.android.alpha_player.controller.IPlayerController
 import com.ss.ugc.android.alpha_player.controller.PlayerController
+import com.ss.ugc.android.alpha_player.model.AlphaVideoDirection
 import com.ss.ugc.android.alpha_player.model.AlphaVideoViewType
 import com.ss.ugc.android.alpha_player.model.Configuration
 import com.ss.ugc.android.alpha_player.model.DataSource
 import com.ss.ugc.android.alpha_player.model.ScaleType
 import io.flutter.plugin.common.BinaryMessenger
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.platform.PlatformView
-import java.io.File
 
 /**
  * Created by pengboboer.
  * Date: 2023/3/28
  */
-class AlphaPlayerView(context: Context, viewId: Int, private val messenger: BinaryMessenger) :
-        PlatformView, RelativeLayout(context), LifecycleOwner, MethodCallHandler {
+class AlphaPlayerView(context: Context, private val viewId: Int, private val messenger: BinaryMessenger) :
+        PlatformView, RelativeLayout(context), LifecycleOwner {
     private val TAG = "AlphaPlayerView"
 
-
-    private var channel: MethodChannel? = null
-
-    private var result: MethodChannel.Result? = null
 
     private var mRegistry = LifecycleRegistry(this)
 
     private var mPlayerController: IPlayerController? = null
 
-    private var filePath: String? = null
+    private var dataSourcePath: String? = null
+
+    private val flutterApi = FlutterAlphaVideoPlayerApi(messenger)
 
     private val playerAction = object : IPlayerAction {
         override fun onVideoSizeChanged(videoWidth: Int, videoHeight: Int, scaleType: ScaleType) {
@@ -52,15 +47,32 @@ class AlphaPlayerView(context: Context, viewId: Int, private val messenger: Bina
 
         override fun startAction() {
             Log.i(TAG, "call startAction()")
+            callbackFlutter(AlphaVideoEvent.PLAY)
         }
 
         override fun endAction() {
             Log.i(TAG, "call endAction")
-            if (channel != null) {
-                val params: HashMap<String, String?> = HashMap()
-                params["filePath"] = filePath
-                channel?.invokeMethod("playEnd", params)
-            }
+            callbackFlutter(AlphaVideoEvent.COMPLATE)
+        }
+    }
+
+    private fun callbackFlutter(event: AlphaVideoEvent) {
+        flutterApi.onVideoEvent(
+            AlphaVideoEventMessage(
+                viewId = viewId.toLong(),
+                event = event
+            )
+        ) {
+            Log.w(TAG, "call onVideoEvent error, event=$event")
+        }
+    }
+
+    private fun callbackFlutterError(msg: String) {
+        flutterApi.onVideoError(
+            TextureMessage(viewId.toLong()),
+            msg
+        ) {
+            Log.w(TAG, "call onVideoError error, msg=$msg")
         }
     }
 
@@ -69,6 +81,9 @@ class AlphaPlayerView(context: Context, viewId: Int, private val messenger: Bina
             Log.i(TAG,
                     "call monitor(), state: $state, playType = $playType, what = $what, extra = $extra, errorInfo = $errorInfo"
             )
+            if (state == false) {
+                callbackFlutterError(msg = errorInfo)
+            }
         }
     }
 
@@ -78,36 +93,12 @@ class AlphaPlayerView(context: Context, viewId: Int, private val messenger: Bina
         )
         setLayoutParams(layoutParams)
         initPlayerController(context, this)
-        channel = MethodChannel(this.messenger, "alpha_player_plugin_$viewId")
-        channel?.setMethodCallHandler(this)
-    }
-
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        this.result = result
-
-        when (call.method) {
-            "start" -> {
-                filePath = call.argument<String>("filePath")
-                val align = call.argument<Int>("align")
-                val isLooping = call.argument<Boolean>("isLooping")
-                if (filePath?.isNotEmpty() == true) {
-                    val file = File(filePath)
-                    file.parent?.let { startVideo(it, file.name, align, isLooping) }
-                }
-            }
-            "pause" -> mPlayerController?.pause()
-            "resume" -> mPlayerController?.resume()
-            else -> result.notImplemented()
-        }
-        result.success(true)
     }
 
     override fun getView(): View = this
 
     override fun dispose() {
         releasePlayerController()
-        channel?.setMethodCallHandler(null)
-        channel = null
         detachView()
     }
 
@@ -117,6 +108,7 @@ class AlphaPlayerView(context: Context, viewId: Int, private val messenger: Bina
         val configuration = Configuration(context, owner)
         //  GLTextureView supports custom display layer, but GLSurfaceView has better performance, and the GLSurfaceView is default.
         configuration.alphaVideoViewType = AlphaVideoViewType.GL_TEXTURE_VIEW
+        configuration.alphaVideoDirection = AlphaVideoDirection.BOTTOM
         //  You can implement your IMediaPlayer, here we use ExoPlayerImpl that implemented by ExoPlayer, and
         //  we support DefaultSystemPlayer as default player.
         mPlayerController = PlayerController.get(configuration, ExoPlayerImpl(context))
@@ -128,17 +120,17 @@ class AlphaPlayerView(context: Context, viewId: Int, private val messenger: Bina
         attachView()
     }
 
-
-    private fun startVideo(filePath: String, fileName: String, align: Int?, looping: Boolean?) {
-        if (TextUtils.isEmpty(filePath)) {
+    fun startVideo(dataSourcePath: String, align: Int?, looping: Boolean?) {
+        if (TextUtils.isEmpty(dataSourcePath)) {
             return
         }
+        this.dataSourcePath = dataSourcePath
 
-        var scaleType = align ?: 2
-        var isLooping = looping ?: true
+        val scaleType = align ?: 2
+        val isLooping = looping ?: false
 
-        val dataSource = DataSource().setBaseDir(filePath).setPortraitPath(fileName, scaleType)
-                .setLandscapePath(fileName, scaleType).setLooping(isLooping)
+        val dataSource = DataSource().setPortraitPath(dataSourcePath, scaleType)
+                .setLandscapePath(dataSourcePath, scaleType).setLooping(isLooping)
         if (dataSource.isValid()) {
             mPlayerController?.start(dataSource)
         }
@@ -157,6 +149,18 @@ class AlphaPlayerView(context: Context, viewId: Int, private val messenger: Bina
             it.detachAlphaView(this)
             it.release()
         }
+    }
+
+    fun play() {
+        mPlayerController?.play()
+    }
+
+    fun pause(){
+        mPlayerController?.pause()
+    }
+
+    fun resume(){
+        mPlayerController?.resume()
     }
 
 

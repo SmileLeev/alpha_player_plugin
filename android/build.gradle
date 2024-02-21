@@ -16,11 +16,32 @@ buildscript {
     }
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def UE_NEXUS_URL = localProperties.getProperty('UE_NEXUS_URL')
+def UE_NEXUS_UNAME = localProperties.getProperty('UE_NEXUS_UNAME')
+def UE_NEXUS_UPWD = localProperties.getProperty('UE_NEXUS_UPWD')
+
 allprojects {
     repositories {
+        mavenLocal()
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
+        maven {
+            url UE_NEXUS_URL
+            allowInsecureProtocol true
+            credentials {
+                username UE_NEXUS_UNAME
+                password UE_NEXUS_UPWD
+            }
+        }
         jcenter()
     }
 }
@@ -53,5 +74,6 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'com.google.android.exoplayer:exoplayer-core:2.18.5'
-    implementation 'com.github.bytedance:AlphaPlayer:1.0.6'
+//    implementation 'com.github.bytedance:AlphaPlayer:1.0.6'
+    implementation 'com.xiaoice.aic.thirdpart:alpha_video_player:1.0.0-SNAPSHOT'
 }

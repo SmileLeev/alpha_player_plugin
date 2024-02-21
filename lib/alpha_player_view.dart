@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import 'messages.g.dart';
+
 const String _viewType = "alpha_player_view_factory";
 const String _channelName = "alpha_player_plugin_";
 
@@ -30,38 +32,17 @@ class AlphaPlayerView extends StatefulWidget {
 }
 
 class _AlphaPlayerViewState extends State<AlphaPlayerView> {
-  MethodChannel? methodChannel;
+  var viewId = -1;
 
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onController);
+    FlutterAlphaVideoPlayerApi.setup(widget.controller);
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onController);
-    methodChannel?.setMethodCallHandler(null);
     super.dispose();
-  }
-
-  void _onController() {
-    switch (widget.controller.event) {
-      case AlphaPlayerEvent.start:
-        methodChannel?.invokeMethod('start', {
-          'filePath': widget.controller.videoPath,
-          'align': widget.controller.videoAlign?.getValue(),
-          'isLooping': widget.controller.isLooping ?? true,
-        });
-        break;
-      case AlphaPlayerEvent.pause:
-        methodChannel?.invokeMethod('pause');
-        break;
-      case AlphaPlayerEvent.resume:
-        methodChannel?.invokeMethod('resume');
-        break;
-      default:
-    }
   }
 
   @override
@@ -101,64 +82,111 @@ class _AlphaPlayerViewState extends State<AlphaPlayerView> {
   }
 
   void _onPlatformViewCreated(int id) {
-    methodChannel = MethodChannel('$_channelName$id');
+    widget.controller.createView(id);
     widget.onCreated?.call(id);
-    methodChannel?.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case "playEnd":
-          widget.onCompleted?.call(call.arguments?["filePath"]);
-          break;
-        default:
-          break;
-      }
-    });
+    // methodChannel = MethodChannel('$_channelName$id');
+    // methodChannel?.setMethodCallHandler((call) async {
+    //   switch (call.method) {
+    //     case "playEnd":
+    //       widget.onCompleted?.call(call.arguments?["filePath"]);
+    //       break;
+    //     default:
+    //       break;
+    //   }
+    // });
   }
 }
 
-class AlphaPlayerController extends ChangeNotifier {
-  String? videoPath;
+class AlphaPlayerController extends ValueNotifier<AlphaVideoValue> implements FlutterAlphaVideoPlayerApi {
   AlphaPlayerScaleType? videoAlign;
   bool? isLooping;
+  AndroidAlphaVideoPlayerApi _api = AndroidAlphaVideoPlayerApi();
 
-  AlphaPlayerEvent? event;
+  AlphaPlayerController.file(String path):
+        super(AlphaVideoValue(dataSourcePath: path, dataSourceType: DataSourceType.File));
+  AlphaPlayerController.networkUrl(Uri url):
+        super(AlphaVideoValue(dataSourcePath: url.toString(), dataSourceType: DataSourceType.Url));
+  AlphaPlayerController.assets(String name):
+        super(AlphaVideoValue(dataSourcePath: name, dataSourceType: DataSourceType.Assets));
 
-  void start(
-    String? path, {
+  void onVideoError(TextureMessage msg, String errorMsg){
+    if (value.viewId == msg.textureId) {
+      value = value.copyWith(hasError: true, complete: false, isPlaying: false);
+    }
+  }
+
+  void onVideoEvent(AlphaVideoEventMessage msg) {
+    if (value.viewId == msg.viewId) {
+      switch(msg.event) {
+        case AlphaVideoEvent.Init:
+          value = value.copyWith(hasError: false, complete: false, isPlaying: false);
+          break;
+        case AlphaVideoEvent.Play:
+          value = value.copyWith(hasError: false, complete: false, isPlaying: true);
+          break;
+        case AlphaVideoEvent.Pause:
+          value = value.copyWith(hasError: false, complete: false, isPlaying: false);
+          break;
+        case AlphaVideoEvent.Complate:
+          value = value.copyWith(hasError: false, complete: true, isPlaying: false);
+          break;
+        case AlphaVideoEvent.Error:
+          value = value.copyWith(hasError: true, complete: false, isPlaying: false);
+          break;
+      }
+    }
+  }
+
+  void createView(int viewId) {
+    value = value.copyWith(viewId: viewId);
+  }
+
+  void start({
     AlphaPlayerScaleType? align,
     bool? isLooping,
   }) {
-    videoPath = path;
+    var viewId = value.viewId;
+    if (viewId == null) {
+      throw Exception("viewId is null");
+    }
+    var path = value.dataSourcePath;
+    if (path?.isNotEmpty != true) {
+      throw Exception("path is null");
+    }
+    value = value.copyWith(dataSourcePath: path!);
     videoAlign = align;
     this.isLooping = isLooping;
-    event = AlphaPlayerEvent.start;
-    notifyListeners();
+    _api.initialize(InitMessage(viewId: viewId,
+        dataSource: path,
+        dataSourceType: value.dataSourceType,
+        videoAlign: videoAlign ?? AlphaPlayerScaleType.ScaleAspectFitCenter,
+        isLooping: isLooping ?? true));
   }
 
   void pause() {
-    event = AlphaPlayerEvent.pause;
-    notifyListeners();
+    var viewId = value.viewId;
+    if (viewId == null) {
+      throw Exception("viewId is null");
+    }
+    _api.pause(TextureMessage(textureId: viewId));
   }
 
   void resume() {
-    event = AlphaPlayerEvent.resume;
-    notifyListeners();
+    var viewId = value.viewId;
+    if (viewId == null) {
+      throw Exception("viewId is null");
+    }
+    _api.play(TextureMessage(textureId: viewId));
   }
-}
 
-enum AlphaPlayerEvent { start, pause, resume, stop, reset }
-
-enum AlphaPlayerScaleType {
-  ScaleToFill, //  拉伸铺满全屏
-  ScaleAspectFitCenter, //  等比例缩放对齐全屏，居中，屏幕多余留空
-  ScaleAspectFill, //  等比例缩放铺满全屏，裁剪视频多余部分
-  TopFill, //  等比例缩放铺满全屏，顶部对齐
-  BottomFill, //  等比例缩放铺满全屏，底部对齐
-  LeftFill, //  等比例缩放铺满全屏，左边对齐
-  RightFill, //  等比例缩放铺满全屏，右边对齐
-  TopFit, //  等比例缩放至屏幕宽度，顶部对齐，底部留空
-  BottomFit, //  等比例缩放至屏幕宽度，底部对齐，顶部留空
-  LeftFit, //  等比例缩放至屏幕高度，左边对齐，右边留空
-  RightFit //  等比例缩放至屏幕高度，右边对齐，左边留空
+  @override
+  void dispose() {
+    var viewId = value.viewId;
+    if (viewId != null) {
+      _api.dispose(TextureMessage(textureId:viewId));
+    }
+    super.dispose();
+  }
 }
 
 extension ScaleTypeExtension on AlphaPlayerScaleType {
@@ -175,5 +203,34 @@ extension ScaleTypeExtension on AlphaPlayerScaleType {
     if (this == AlphaPlayerScaleType.LeftFit) return 9;
     if (this == AlphaPlayerScaleType.RightFit) return 10;
     return 0;
+  }
+}
+
+class AlphaVideoValue {
+  int? viewId;
+  String? dataSourcePath;
+  DataSourceType dataSourceType;
+  bool? hasError;
+  bool? isPlaying;
+  bool? complete;
+
+  AlphaVideoValue({this.viewId, this.dataSourcePath, this.dataSourceType = DataSourceType.Url,
+      this.hasError, this.isPlaying, this.complete});
+
+  AlphaVideoValue copyWith({
+    int? viewId,
+    String? dataSourcePath,
+    DataSourceType? dataSourceType,
+    bool? hasError,
+    bool? isPlaying,
+    bool? complete,
+  }) {
+    return AlphaVideoValue()
+      ..viewId = viewId ?? this.viewId
+      ..dataSourcePath = dataSourcePath ?? this.dataSourcePath
+      ..dataSourceType = dataSourceType ?? this.dataSourceType
+      ..hasError = hasError ?? this.hasError
+      ..isPlaying = isPlaying ?? this.isPlaying
+      ..complete = complete ?? this.complete;
   }
 }

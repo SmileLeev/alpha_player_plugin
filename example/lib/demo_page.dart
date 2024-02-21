@@ -16,7 +16,8 @@ class _DemoPageState extends State<DemoPage> {
 
   final ImagePicker _picker = ImagePicker();
 
-  AlphaPlayerController controller = AlphaPlayerController();
+  AlphaPlayerController controller = AlphaPlayerController.assets("assets/idle.mkv");
+  // AlphaPlayerController controller = AlphaPlayerController.networkUrl(Uri.parse("https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4"));
 
   @override
   void dispose() {
@@ -60,7 +61,8 @@ class _DemoPageState extends State<DemoPage> {
               children: [
                 ElevatedButton(
                     onPressed: () {
-                      controller.start(videoPath);
+                      controller.start();
+                      // controller.start(videoPath);
                     },
                     child: const Text("播放")),
                 ElevatedButton(

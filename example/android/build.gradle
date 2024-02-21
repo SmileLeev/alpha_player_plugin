@@ -13,12 +13,33 @@ buildscript {
     }
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def UE_NEXUS_URL = localProperties.getProperty('UE_NEXUS_URL')
+def UE_NEXUS_UNAME = localProperties.getProperty('UE_NEXUS_UNAME')
+def UE_NEXUS_UPWD = localProperties.getProperty('UE_NEXUS_UPWD')
+
 allprojects {
     repositories {
+        mavenLocal()
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
         jcenter()
+        maven {
+            url UE_NEXUS_URL
+            allowInsecureProtocol true
+            credentials {
+                username UE_NEXUS_UNAME
+                password UE_NEXUS_UPWD
+            }
+        }
     }
 }
 
@@ -30,6 +51,6 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-task clean(type: Delete) {
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

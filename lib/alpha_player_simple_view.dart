@@ -1,6 +1,8 @@
 import 'package:alpha_player_plugin/alpha_player_view.dart';
 import 'package:flutter/material.dart';
 
+import 'messages.g.dart';
+
 /// @author: pengboboer
 /// @createDate: 2023/3/29
 typedef AlphaPlayerSimpleViewStartedCallback = void Function(
@@ -33,14 +35,13 @@ class AlphaPlayerSimpleView extends StatefulWidget {
 }
 
 class _AlphaPlayerSimpleViewState extends State<AlphaPlayerSimpleView> {
-  final AlphaPlayerController controller = AlphaPlayerController();
+  final AlphaPlayerController controller = AlphaPlayerController.networkUrl(Uri.parse("https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4"));
 
   @override
   void didUpdateWidget(covariant AlphaPlayerSimpleView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.path != widget.path) {
-      controller.start(widget.path,
-          align: widget.align, isLooping: widget.isLooping);
+      controller.start(align: widget.align, isLooping: widget.isLooping);
       widget.onStarted?.call(controller);
     }
   }
@@ -56,8 +57,7 @@ class _AlphaPlayerSimpleViewState extends State<AlphaPlayerSimpleView> {
     return AlphaPlayerView(
       controller: controller,
       onCreated: (id) {
-        controller.start(widget.path,
-            align: widget.align, isLooping: widget.isLooping);
+        controller.start(align: widget.align, isLooping: widget.isLooping);
         widget.onStarted?.call(controller);
       },
       width: widget.width,
