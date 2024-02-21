@@ -34,12 +34,14 @@ allprojects {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
-        maven {
-            url UE_NEXUS_URL
-            allowInsecureProtocol true
-            credentials {
-                username UE_NEXUS_UNAME
-                password UE_NEXUS_UPWD
+        if (UE_NEXUS_URL != null) {
+            maven {
+                url UE_NEXUS_URL
+                allowInsecureProtocol true
+                credentials {
+                    username UE_NEXUS_UNAME
+                    password UE_NEXUS_UPWD
+                }
             }
         }
         jcenter()
