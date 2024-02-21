@@ -57,22 +57,26 @@ class AlphaPlayerView(context: Context, private val viewId: Int, private val mes
     }
 
     private fun callbackFlutter(event: AlphaVideoEvent) {
-        flutterApi.onVideoEvent(
-            AlphaVideoEventMessage(
-                viewId = viewId.toLong(),
-                event = event
-            )
-        ) {
-            Log.w(TAG, "call onVideoEvent error, event=$event")
+        post {
+            flutterApi.onVideoEvent(
+                AlphaVideoEventMessage(
+                    viewId = viewId.toLong(),
+                    event = event
+                )
+            ) {
+                Log.w(TAG, "call onVideoEvent error, event=$event")
+            }
         }
     }
 
     private fun callbackFlutterError(msg: String) {
-        flutterApi.onVideoError(
-            TextureMessage(viewId.toLong()),
-            msg
-        ) {
-            Log.w(TAG, "call onVideoError error, msg=$msg")
+        post {
+            flutterApi.onVideoError(
+                TextureMessage(viewId.toLong()),
+                msg
+            ) {
+                Log.w(TAG, "call onVideoError error, msg=$msg")
+            }
         }
     }
 
