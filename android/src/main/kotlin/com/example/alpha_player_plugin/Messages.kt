@@ -264,7 +264,10 @@ data class InitMessage (
 /** Generated class from Pigeon that represents data sent in messages. */
 data class AlphaVideoEventMessage (
   val viewId: Long,
-  val event: AlphaVideoEvent
+  val event: AlphaVideoEvent,
+  val duration: Long? = null,
+  val width: Long? = null,
+  val height: Long? = null
 
 ) {
   companion object {
@@ -272,13 +275,19 @@ data class AlphaVideoEventMessage (
     fun fromList(list: List<Any?>): AlphaVideoEventMessage {
       val viewId = list[0].let { if (it is Int) it.toLong() else it as Long }
       val event = AlphaVideoEvent.ofRaw(list[1] as Int)!!
-      return AlphaVideoEventMessage(viewId, event)
+      val duration = list[2].let { if (it is Int) it.toLong() else it as Long? }
+      val width = list[3].let { if (it is Int) it.toLong() else it as Long? }
+      val height = list[4].let { if (it is Int) it.toLong() else it as Long? }
+      return AlphaVideoEventMessage(viewId, event, duration, width, height)
     }
   }
   fun toList(): List<Any?> {
     return listOf<Any?>(
       viewId,
       event.raw,
+      duration,
+      width,
+      height,
     )
   }
 }

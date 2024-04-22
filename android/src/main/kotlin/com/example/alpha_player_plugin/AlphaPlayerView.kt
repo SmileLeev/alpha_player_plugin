@@ -38,11 +38,16 @@ class AlphaPlayerView(context: Context, private val viewId: Int, private val mes
 
     private val flutterApi = FlutterAlphaVideoPlayerApi(messenger)
 
+    private var videoWidth: Int? = null
+    private var videoHeight: Int? = null
+
     private val playerAction = object : IPlayerAction {
         override fun onVideoSizeChanged(videoWidth: Int, videoHeight: Int, scaleType: ScaleType) {
             Log.i(TAG,
                     "call onVideoSizeChanged(), videoWidth = $videoWidth, videoHeight = $videoHeight, scaleType = $scaleType"
             )
+            this@AlphaPlayerView.videoWidth = videoWidth
+            this@AlphaPlayerView.videoHeight = videoHeight
         }
 
         override fun startAction() {
@@ -61,7 +66,9 @@ class AlphaPlayerView(context: Context, private val viewId: Int, private val mes
             flutterApi.onVideoEvent(
                 AlphaVideoEventMessage(
                     viewId = viewId.toLong(),
-                    event = event
+                    event = event,
+                    width = videoWidth?.toLong(),
+                    height = videoHeight?.toLong()
                 )
             ) {
                 Log.w(TAG, "call onVideoEvent error, event=$event")
@@ -128,6 +135,7 @@ class AlphaPlayerView(context: Context, private val viewId: Int, private val mes
         if (TextUtils.isEmpty(dataSourcePath)) {
             return
         }
+        callbackFlutter(AlphaVideoEvent.INIT)
         this.dataSourcePath = dataSourcePath
 
         val scaleType = align ?: 2

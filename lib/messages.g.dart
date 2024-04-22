@@ -252,16 +252,28 @@ class AlphaVideoEventMessage {
   AlphaVideoEventMessage({
     required this.viewId,
     required this.event,
+    this.duration,
+    this.width,
+    this.height,
   });
 
   int viewId;
 
   AlphaVideoEvent event;
 
+  int? duration;
+
+  int? width;
+
+  int? height;
+
   Object encode() {
     return <Object?>[
       viewId,
       event.index,
+      duration,
+      width,
+      height,
     ];
   }
 
@@ -270,6 +282,9 @@ class AlphaVideoEventMessage {
     return AlphaVideoEventMessage(
       viewId: result[0]! as int,
       event: AlphaVideoEvent.values[result[1]! as int],
+      duration: result[2] as int?,
+      width: result[3] as int?,
+      height: result[4] as int?,
     );
   }
 }

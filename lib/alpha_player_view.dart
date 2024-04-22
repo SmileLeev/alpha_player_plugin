@@ -84,16 +84,6 @@ class _AlphaPlayerViewState extends State<AlphaPlayerView> {
   void _onPlatformViewCreated(int id) {
     widget.controller.createView(id);
     widget.onCreated?.call(id);
-    // methodChannel = MethodChannel('$_channelName$id');
-    // methodChannel?.setMethodCallHandler((call) async {
-    //   switch (call.method) {
-    //     case "playEnd":
-    //       widget.onCompleted?.call(call.arguments?["filePath"]);
-    //       break;
-    //     default:
-    //       break;
-    //   }
-    // });
   }
 }
 
@@ -101,6 +91,7 @@ class AlphaPlayerController extends ValueNotifier<AlphaVideoValue> implements Fl
   AlphaPlayerScaleType? videoAlign;
   bool? isLooping;
   AndroidAlphaVideoPlayerApi _api = AndroidAlphaVideoPlayerApi();
+  bool _isDisposed = false;
 
   AlphaPlayerController.file(String path):
         super(AlphaVideoValue(dataSourcePath: path, dataSourceType: DataSourceType.File));
@@ -110,16 +101,22 @@ class AlphaPlayerController extends ValueNotifier<AlphaVideoValue> implements Fl
         super(AlphaVideoValue(dataSourcePath: name, dataSourceType: DataSourceType.Assets));
 
   void onVideoError(TextureMessage msg, String errorMsg){
+    if (_isDisposed) {
+      return;
+    }
     if (value.viewId == msg.textureId) {
       value = value.copyWith(hasError: true, complete: false, isPlaying: false);
     }
   }
 
   void onVideoEvent(AlphaVideoEventMessage msg) {
+    if (_isDisposed) {
+      return;
+    }
     if (value.viewId == msg.viewId) {
       switch(msg.event) {
         case AlphaVideoEvent.Init:
-          value = value.copyWith(hasError: false, complete: false, isPlaying: false);
+          value = value.copyWith(hasError: false, complete: false, isPlaying: false, isInitialized: true);
           break;
         case AlphaVideoEvent.Play:
           value = value.copyWith(hasError: false, complete: false, isPlaying: true);
@@ -164,6 +161,9 @@ class AlphaPlayerController extends ValueNotifier<AlphaVideoValue> implements Fl
   }
 
   void pause() {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
     var viewId = value.viewId;
     if (viewId == null) {
       throw Exception("viewId is null");
@@ -171,7 +171,21 @@ class AlphaPlayerController extends ValueNotifier<AlphaVideoValue> implements Fl
     _api.pause(TextureMessage(textureId: viewId));
   }
 
+  void play() {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    var viewId = value.viewId;
+    if (viewId == null) {
+      throw Exception("viewId is null");
+    }
+    _api.play(TextureMessage(textureId: viewId));
+  }
+
   void resume() {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
     var viewId = value.viewId;
     if (viewId == null) {
       throw Exception("viewId is null");
@@ -181,12 +195,18 @@ class AlphaPlayerController extends ValueNotifier<AlphaVideoValue> implements Fl
 
   @override
   void dispose() {
+    if (_isDisposed) {
+      return;
+    }
     var viewId = value.viewId;
     if (viewId != null) {
       _api.dispose(TextureMessage(textureId:viewId));
     }
+    _isDisposed = true;
     super.dispose();
   }
+
+  bool get _isDisposedOrNotInitialized => _isDisposed || !value.isInitialized;
 }
 
 extension ScaleTypeExtension on AlphaPlayerScaleType {
@@ -211,17 +231,19 @@ class AlphaVideoValue {
   String? dataSourcePath;
   DataSourceType dataSourceType;
   bool? hasError;
+  bool isInitialized;
   bool? isPlaying;
   bool? complete;
 
   AlphaVideoValue({this.viewId, this.dataSourcePath, this.dataSourceType = DataSourceType.Url,
-      this.hasError, this.isPlaying, this.complete});
+      this.isInitialized = false, this.hasError, this.isPlaying, this.complete});
 
   AlphaVideoValue copyWith({
     int? viewId,
     String? dataSourcePath,
     DataSourceType? dataSourceType,
     bool? hasError,
+    bool? isInitialized,
     bool? isPlaying,
     bool? complete,
   }) {
@@ -230,6 +252,7 @@ class AlphaVideoValue {
       ..dataSourcePath = dataSourcePath ?? this.dataSourcePath
       ..dataSourceType = dataSourceType ?? this.dataSourceType
       ..hasError = hasError ?? this.hasError
+      ..isInitialized = isInitialized ?? this.isInitialized
       ..isPlaying = isPlaying ?? this.isPlaying
       ..complete = complete ?? this.complete;
   }

@@ -58,8 +58,11 @@ class InitMessage {
 class AlphaVideoEventMessage {
   final int viewId;
   final AlphaVideoEvent event;
+  final int? duration;
+  final int? width;
+  final int? height;
 
-  AlphaVideoEventMessage(this.viewId, this.event);
+  AlphaVideoEventMessage(this.viewId, this.event, this.duration, this.width, this.height);
 }
 
 enum DataSourceType {
