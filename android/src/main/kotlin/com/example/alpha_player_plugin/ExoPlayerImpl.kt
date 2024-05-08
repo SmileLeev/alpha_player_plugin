@@ -8,6 +8,7 @@ import androidx.annotation.Keep
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.Player.*
 import com.google.android.exoplayer2.video.VideoSize
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.ss.ugc.android.alpha_player.model.VideoInfo
 import com.ss.ugc.android.alpha_player.player.AbsPlayer
 import com.ss.ugc.android.alpha_player.player.IMediaPlayer
@@ -56,7 +57,15 @@ class ExoPlayerImpl(private val context: Context) : AbsPlayer(context) {
     }
 
     override fun initMediaPlayer() {
-        exoPlayer = ExoPlayer.Builder(context).build()
+        val trackSelector = DefaultTrackSelector(context).apply {
+            // 设置一个 TrackSelection 参数，这里使用的是 AdaptiveTrackSelection.Factory
+            val parametersBuilder = this.buildUponParameters()
+            // 禁用音频轨道
+            parametersBuilder.setRendererDisabled(C.TRACK_TYPE_AUDIO, true)
+            // 设置参数
+            this.setParameters(parametersBuilder)
+        }
+        exoPlayer = ExoPlayer.Builder(context).setTrackSelector(trackSelector).build()
         exoPlayer.addListener(exoPlayerListener)
         exoPlayer.repeatMode = REPEAT_MODE_ONE
     }
