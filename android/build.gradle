@@ -77,5 +77,5 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'com.google.android.exoplayer:exoplayer-core:2.18.5'
 //    implementation 'com.github.bytedance:AlphaPlayer:1.0.6'
-    implementation 'com.xiaoice.aic.thirdpart:alpha_video_player:1.0.0-SNAPSHOT'
+    implementation 'com.xiaoice.aic.thirdpart:alpha_video_player:1.0.1-SNAPSHOT'
 }
