@@ -16,12 +16,13 @@ class _DemoPageState extends State<DemoPage> {
 
   final ImagePicker _picker = ImagePicker();
 
-  AlphaPlayerController controller = AlphaPlayerController.assets("assets/idle.mkv");
+  AlphaPlayerController? controller = null;
+  // AlphaPlayerController controller = AlphaPlayerController.assets("assets/idle.mkv");
   // AlphaPlayerController controller = AlphaPlayerController.networkUrl(Uri.parse("https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4"));
 
   @override
   void dispose() {
-    controller.dispose();
+    controller?.dispose();
     super.dispose();
   }
 
@@ -52,7 +53,9 @@ class _DemoPageState extends State<DemoPage> {
                       final XFile? video =
                           await _picker.pickVideo(source: ImageSource.gallery);
                       videoPath = video?.path;
-                      setState(() {});
+                      setState(() {
+                        controller = AlphaPlayerController.file(videoPath!);
+                      });
                     },
                     child: const Text("选择")),
               ],
@@ -61,18 +64,18 @@ class _DemoPageState extends State<DemoPage> {
               children: [
                 ElevatedButton(
                     onPressed: () {
-                      controller.start();
+                      controller?.start();
                       // controller.start(videoPath);
                     },
                     child: const Text("播放")),
                 ElevatedButton(
                     onPressed: () {
-                      controller.pause();
+                      controller?.pause();
                     },
                     child: const Text("暂停")),
                 ElevatedButton(
                     onPressed: () {
-                      controller.resume();
+                      controller?.resume();
                     },
                     child: const Text("恢复")),
               ],
@@ -81,12 +84,7 @@ class _DemoPageState extends State<DemoPage> {
                 height: screenWidth * 1.5,
                 width: screenWidth,
                 decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    alignment: Alignment.topCenter,
-                    image: AssetImage(
-                      'assets/test_bg.png',
-                    ),
-                  ),
+                  color: Colors.red
                 ),
                 alignment: Alignment.center,
                 child: _buildContentWidget()),
@@ -97,9 +95,12 @@ class _DemoPageState extends State<DemoPage> {
   }
 
   Widget _buildContentWidget() {
+    if (controller == null) {
+      return Container();
+    }
     double screenWidth = MediaQuery.of(context).size.width;
     return AlphaPlayerView(
-      controller: controller,
+      controller: controller!,
       width: screenWidth,
       height: screenWidth * 1.5,
     );
